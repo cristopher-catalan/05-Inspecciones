@@ -1,64 +1,53 @@
-# 05 — Sistema de inspecciones
+# 05 — Sistema de inspecciones y seguridad de campo
 
-**Estado:** MVP local funcional implementado para práctica; no es una aplicación de producción.  
+**Estado:** Aplicación web interactiva para auditorías y recorridos de campo con cuestionario digital dinámico, cálculo en vivo de puntaje de conformidad y flujo de cierre de hallazgos.
 
-**Ejecución:** desde la raíz de Preparacion-7-Proyectos-Web-DotNet, ejecuta dotnet run --project .\05-Inspecciones\Inspecciones.csproj y abre http://localhost:5105. Contraseña de demostración: Demo123!. La persistencia usa EF Core InMemory por defecto; los perfiles y roles están en /api/auth/demo-users.
+**Ejecución:** desde la raíz de Preparacion-7-Proyectos-Web-DotNet, ejecuta `dotnet run --project .\05-Inspecciones\Inspecciones.csproj` y abre `http://localhost:5105`. Contraseña de demostración: `Demo123!`.
 
-**Objetivo:** planificar inspecciones de sedes/equipos, completar formularios y generar hallazgos trazables.
+---
 
-## Perfiles
+## Características de la Interfaz Moderna y Flujos Dinámicos
 
-- **Coordinador:** crea sedes, plantillas y cronogramas; asigna inspectores.
-- **Inspector:** ejecuta una inspección asignada y adjunta evidencias.
-- **Supervisor:** revisa hallazgos, devuelve informes y cierra acciones correctivas.
-- **Administrador:** gestiona usuarios, catálogos y parámetros.
+1. **Agenda de Recorridos en Tiempo Real:**
+   - Programación de inspecciones asignando sede, plantilla normativa e inspector responsable.
+   - Aislamiento por inspector: los perfiles de inspector solo visualizan sus recorridos asignados.
 
-## Alcance
+2. **Cuestionario Digital de Auditoría (*Checklist*):**
+   - Panel lateral interactivo con preguntas estructuradas y ponderadas.
+   - Botones rápidos de 1 clic: **"✓ Conforme"**, **"✗ No conforme"** y **"— No aplica"**.
+   - Campo para ingresar observaciones y comentarios por ítem.
 
-- Catálogo de establecimientos/equipos.
-- Plantillas configurables de inspección, secciones y preguntas.
-- Asignación de inspecciones por fecha y responsable.
-- Captura de respuestas: conforme, no conforme, no aplica; comentario y evidencia opcional.
-- Cálculo de puntaje a partir de reglas explícitas de plantilla.
-- Hallazgos con nivel de severidad y acción correctiva.
-- Revisión, cierre y exportación de un informe legible.
-- Historial de cambios y filtros por sede, responsable, fecha, estado y severidad.
+3. **Cálculo y Barra de Puntaje en Vivo:**
+   - La barra de conformidad se actualiza en tiempo real al seleccionar respuestas, cambiando de color dinámicamente según el porcentaje alcanzado (verde $\ge 80\%$, ámbar $\ge 50\%$, rojo $< 50\%$).
 
-El MVP funciona localmente. El modo offline, la sincronización móvil y la captura de evidencia en campo se reservan para una iteración posterior.
+4. **Generación Automática de Hallazgos y Cierre con Acción Correctiva:**
+   - Cualquier respuesta marcada como "No conforme" genera automáticamente un hallazgo con severidad (*Alta*, *Media*, *Baja*).
+   - Botón directo de **1 clic para supervisores: "✓ Cerrar con Acción Correctiva"** exigiendo el registro de la medida técnica implementada.
 
-## Datos principales
+---
 
-- **Site:** código, nombre, dirección descriptiva, tipo y activo.
-- **InspectionTemplate:** título, versión, estado y vigencia.
-- **TemplateSection / Question:** orden, texto, tipo de respuesta, obligatoriedad y puntaje.
-- **Inspection:** sede, plantilla/version, inspector, fechas y estado.
-- **InspectionAnswer:** respuesta, comentario, puntaje y actor.
-- **Finding:** respuesta relacionada, severidad, descripción, responsable y estado correctivo.
-- **Evidence:** archivo, ruta, MIME, tamaño y checksum.
-- **AuditEvent:** evento, usuario, entidad y fecha.
+## Arquitectura de Código
 
-Una inspección iniciada conserva la versión de plantilla con la que fue creada aunque la plantilla se actualice después.
+```
+05-Inspecciones/
+├── Domain/
+│   └── InspectionModels.cs          # DTOs de recorridos, checklist y hallazgos
+├── Services/
+│   └── InspectionScoringService.cs  # Ponderación de puntajes y cálculo de severidad
+├── Endpoints/
+│   └── InspectionEndpoints.cs       # Endpoints de recorridos y hallazgos abiertos
+├── UI/
+│   ├── InspectionStyles.cs          # Paleta industrial de seguridad y medidores
+│   ├── InspectionLayout.cs          # Layout con round-stat y panel de hallazgos
+│   └── Components/
+│       ├── ScheduleInspectionModal.cs # Modal para agendar visitas
+│       ├── ChecklistAuditDrawer.cs    # Cuestionario interactivo y barra de score
+│       └── ToastSystem.cs             # Notificaciones flotantes animadas
+└── Program.cs                       # Pipeline y servicios
+```
 
-## Páginas y API indicativa
+---
 
-Páginas: sedes; plantillas; calendario; mis inspecciones; formulario de ejecución; hallazgos; revisión; informe.
+## Verificación Funcional
 
-Endpoints candidatos: GET/POST /api/sites; GET/POST /api/templates; POST /api/inspections; GET /api/inspections/{id}; PUT /api/inspections/{id}/answers; POST /api/inspections/{id}/submit; POST /api/findings/{id}/close.
-
-## Reglas
-
-- No permitir completar una inspección asignada a otra persona salvo permiso de supervisor.
-- Validar preguntas obligatorias antes del envío.
-- Mantener respuestas originales y registrar correcciones como eventos.
-- Un hallazgo crítico requiere acción correctiva y revisión antes del cierre.
-- Restringir y validar archivos de evidencia de la misma forma que en Gestión Documental.
-- El cálculo del puntaje debe ser reproducible y mostrar qué respuestas lo generaron.
-
-## Criterios de aceptación
-
-El coordinador crea una inspección desde una plantilla; el inspector completa las preguntas obligatorias; el sistema crea hallazgos para respuestas no conformes según reglas; el supervisor cierra o devuelve el informe; y el historial muestra los responsables y fechas.
-
-## Implementación local actual
-
-MVP disponible: ASP.NET Core + EF Core, panel interactivo y endpoints JSON descritos en el README raíz. El almacenamiento predeterminado es InMemory; SQL Server es configurable. La especificación de este documento sirve como alcance ampliado y backlog.
-
+Compilación limpia en .NET 10. Valida cálculo de score al 50%, generación de hallazgo y cierre supervisado en `Review-FunctionalFlows.ps1`.
